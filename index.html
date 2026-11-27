@@ -1,0 +1,1317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>WILDTRACK VR — Reforged v0.4</title>
+<style>
+:root{
+  --gold:#e0c07a;--gold2:#c9a35a;--panel:rgba(10,18,15,.9);--line:rgba(224,192,122,.32);
+  --muted:#a8b5a6;--ok:#7dcea0;--danger:#e07a6a;--bg:#0a1210;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:#f3f0e6;
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+#game{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
+.panel{background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-radius:14px;box-shadow:0 16px 50px #0009}
+#brand{position:absolute;top:max(14px,env(safe-area-inset-top));left:max(14px,env(safe-area-inset-left));
+  padding:11px 15px;letter-spacing:.14em;font-weight:800;font-size:12px;color:#f0d9a8;z-index:5}
+#brand small{display:block;color:#9aab9a;font-weight:500;letter-spacing:.06em;margin-top:3px;font-size:10px}
+#hud{position:absolute;top:max(14px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));
+  padding:12px 14px;min-width:168px;font-size:12.5px;line-height:1.75;z-index:5}
+#hud b{color:var(--gold)}
+#crosshair{position:absolute;left:50%;top:50%;width:16px;height:16px;transform:translate(-50%,-50%);pointer-events:none;z-index:4}
+#crosshair:before,#crosshair:after{content:"";position:absolute;background:#f5ead0;box-shadow:0 0 4px #000a}
+#crosshair:before{width:2px;height:16px;left:7px}#crosshair:after{height:2px;width:16px;top:7px}
+#hint{position:absolute;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+  padding:8px 14px;color:#d0d8ce;font-size:11.5px;white-space:nowrap;z-index:5;max-width:96vw;overflow:hidden;text-overflow:ellipsis}
+#notice{position:absolute;top:86px;left:50%;transform:translateX(-50%);padding:8px 14px;font-size:12px;
+  opacity:0;transition:opacity .25s;pointer-events:none;z-index:6}
+#side{position:absolute;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));
+  display:flex;gap:7px;flex-wrap:wrap;z-index:5}
+#side button{font-size:11px;min-height:36px;padding:7px 11px}
+#shop{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));
+  width:min(300px,calc(100% - 28px));padding:13px;display:none;z-index:6;max-height:52vh;overflow:auto}
+#shop h3{margin:0 0 8px;color:var(--gold);font-size:14px}
+.shopitem{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #ffffff14;padding:7px 0;font-size:11.5px;gap:8px}
+.shopitem button{padding:6px 9px;min-height:30px;font-size:11px;flex-shrink:0}
+#menu{position:absolute;inset:0;display:grid;place-items:center;z-index:20;
+  background:radial-gradient(ellipse at 50% 32%,#6a8a5a40,transparent 50%),linear-gradient(125deg,#06100de8,#0a1511f0)}
+#menuCard{width:min(540px,calc(100% - 24px));padding:28px 26px;border-color:#e0c07a55;
+  box-shadow:0 28px 90px #000c,inset 0 1px #ffffff10}
+.eyebrow{font-size:10px;letter-spacing:.22em;color:var(--gold);font-weight:800}
+h1{font-size:clamp(30px,6.5vw,50px);line-height:.98;margin:10px 0 8px;color:#f5f1e2;letter-spacing:-.04em}
+.sub{color:#b4c0b4;line-height:1.5;font-size:13.5px;max-width:440px}
+.row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+input,select,button{font:inherit;border-radius:10px;border:1px solid var(--line);padding:11px 12px;background:#15221c;color:#f3f0e6;min-height:44px}
+input{flex:1;min-width:120px}
+button{cursor:pointer;background:linear-gradient(145deg,#e8c98a,#b8884a);color:#1a1810;border:0;font-weight:800;
+  padding:11px 16px;box-shadow:0 4px 16px #0005;transition:transform .14s,filter .14s}
+button:hover{filter:brightness(1.08);transform:translateY(-1px)}
+button:active{transform:scale(.98)}
+button.secondary{background:#1e2e27;color:#e2e8de;border:1px solid #3d5346;box-shadow:none}
+button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+#status{font-size:12px;color:#b8c4b6;margin-top:12px;min-height:18px;line-height:1.4}
+#players{color:#b8c4b6;font-size:11px}
+.vr-only-hint{display:none;margin-top:10px;font-size:11px;color:var(--muted);line-height:1.4}
+@media(max-width:640px){
+  #brand{top:8px;left:8px}#hud{top:8px;right:8px;min-width:130px;font-size:11px}
+  #side{left:8px;bottom:8px}#hint{bottom:56px;font-size:10px}
+}
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="brand" class="panel">WILDTRACK <span style="color:#fff">/</span> VR<small>REFORGED · MULTIPLAYER</small></div>
+<div id="hud" class="panel">
+  CREDITS <b id="money">$400</b><br>
+  HARVEST <b id="harvest">0</b><br>
+  LOADOUT <b id="loadout">Ranger Rifle</b><br>
+  AMMO <b id="ammo">12 / 12</b><br>
+  MODE <b id="locomo">WALK</b><br>
+  ZONE <b id="zone">PINEWOOD</b><br>
+  <span id="players">SOLO SESSION</span>
+</div>
+<div id="crosshair"></div>
+<div id="hint" class="panel">Desktop: WASD · mouse look · click fire · R reload · G bait · F fish · E interact · Tab menu</div>
+<div id="notice" class="panel"></div>
+<div id="side">
+  <button class="secondary" id="mapBtn">BIOME</button>
+  <button class="secondary" id="shopBtn">SHOP</button>
+  <button class="secondary" id="baitBtn">BAIT $12</button>
+  <button class="secondary" id="fishBtn">FISH</button>
+  <button class="secondary" id="modeBtn">MODE: WALK</button>
+</div>
+<div id="shop" class="panel">
+  <h3>FIELD OUTFITTER</h3>
+  <div id="shopItems"></div>
+  <button class="secondary" id="closeShop" style="width:100%;margin-top:8px">CLOSE</button>
+</div>
+
+<div id="menu">
+  <div id="menuCard" class="panel">
+    <div class="eyebrow">MULTIPLAYER · WEBXR · PROXIMITY VOICE</div>
+    <h1>WILDTRACK<br><span style="color:var(--gold)">VR</span></h1>
+    <p class="sub">Track, hunt, and fish across biomes with your crew. Arm-powered VR locomotion, full in-headset menu, and a grabable field tablet.</p>
+    <div class="row">
+      <input id="nickname" maxlength="18" placeholder="Hunter name" value="Trailblazer">
+      <input id="room" maxlength="10" placeholder="Room code" value="PINE7">
+    </div>
+    <div class="row">
+      <button id="join">ENTER WILDERNESS</button>
+      <button class="secondary" id="vr">ENTER VR</button>
+    </div>
+    <div id="status">Join the same room code with friends. Microphone starts after you enter VR.</div>
+    <p class="vr-only-hint" id="vrHint">In VR: press the controller menu / Y button or grab the tablet behind your hip to open the Field Pad (shop, biome, locomotion mode, loadout).</p>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+
+const $ = id => document.getElementById(id);
+
+/* ============================================================
+   STATE
+   ============================================================ */
+let scene, camera, renderer, clock, worldGroup;
+let animals = [], players = new Map(), remoteAvatars = new Map();
+let localId = 'p' + Math.random().toString(36).slice(2, 9);
+let socket = null, pcMap = new Map(), localStream = null, voiceNodes = new Map(), voiceContext = null;
+let roomCode = 'PINE7', nick = 'Trailblazer', joined = false, vrMode = false;
+let money = 400, harvest = 0;
+let yaw = 0, pitch = 0, velocity = new THREE.Vector3();
+let keys = {}, controllers = [], hands = [];
+let lastShot = 0, lastReload = 0;
+let locomotionMode = 'walk'; // 'walk' | 'gorilla'
+let fieldPad = null, fieldPadOpen = false, fieldPadGrabbed = false;
+let localBody = null, legL = null, legR = null, walkPhase = 0;
+let blood = [], bait = [], fish = [];
+let selectedBiome = 'PINEWOOD';
+let currentWeaponIndex = 0;
+let ammoInMag = 12, reserveAmmo = 60;
+
+/* ============================================================
+   DATA — WEAPONS (expanded working set)
+   ============================================================ */
+const weaponDefs = [
+  { name: 'Ranger Rifle',     price: 0,   damage: 38, mag: 12, reserve: 60, rate: 0.55, type: 'rifle' },
+  { name: 'Trail Carbine',    price: 180, damage: 32, mag: 18, reserve: 72, rate: 0.28, type: 'rifle' },
+  { name: 'Brush SMG',        price: 320, damage: 16, mag: 30, reserve: 120, rate: 0.09, type: 'smg' },
+  { name: 'Longshot Sniper',  price: 720, damage: 110, mag: 5, reserve: 25, rate: 1.1, type: 'sniper' },
+  { name: 'Hand Cannon',      price: 460, damage: 68, mag: 7, reserve: 35, rate: 0.7, type: 'pistol' },
+  { name: 'Sidearm .45',      price: 210, damage: 28, mag: 10, reserve: 50, rate: 0.22, type: 'pistol' },
+  { name: 'Recurve Bow',      price: 280, damage: 48, mag: 1, reserve: 24, rate: 0.9, type: 'bow' },
+  { name: 'Hunting Crossbow', price: 540, damage: 85, mag: 1, reserve: 18, rate: 1.3, type: 'crossbow' },
+  { name: 'Pump Shotgun',     price: 390, damage: 22, mag: 6, reserve: 30, rate: 0.85, type: 'shotgun', pellets: 7 },
+  { name: 'Lever Action',     price: 310, damage: 44, mag: 8, reserve: 40, rate: 0.48, type: 'rifle' },
+  { name: 'Scout Rifle',      price: 250, damage: 36, mag: 10, reserve: 50, rate: 0.42, type: 'rifle' },
+  { name: 'Auto Carbine',     price: 580, damage: 24, mag: 25, reserve: 100, rate: 0.11, type: 'smg' },
+  { name: 'Marksman Rifle',   price: 640, damage: 72, mag: 8, reserve: 40, rate: 0.75, type: 'sniper' },
+  { name: 'Trail Pistol',     price: 150, damage: 22, mag: 12, reserve: 60, rate: 0.18, type: 'pistol' },
+  { name: 'Compound Bow',     price: 420, damage: 58, mag: 1, reserve: 28, rate: 0.85, type: 'bow' },
+  { name: 'Heavy Crossbow',   price: 680, damage: 95, mag: 1, reserve: 14, rate: 1.5, type: 'crossbow' },
+  { name: 'Combat Shotgun',   price: 510, damage: 18, mag: 8, reserve: 40, rate: 0.55, type: 'shotgun', pellets: 6 },
+  { name: 'Brush Rifle',      price: 290, damage: 40, mag: 14, reserve: 56, rate: 0.38, type: 'rifle' },
+  { name: 'Tactical SMG',     price: 470, damage: 15, mag: 35, reserve: 140, rate: 0.07, type: 'smg' },
+  { name: 'Magnum Revolver',  price: 520, damage: 78, mag: 6, reserve: 30, rate: 0.8, type: 'pistol' },
+  { name: 'Survival Rifle',   price: 200, damage: 34, mag: 10, reserve: 50, rate: 0.5, type: 'rifle' },
+  { name: 'Field Carbine',    price: 340, damage: 30, mag: 20, reserve: 80, rate: 0.25, type: 'rifle' },
+  { name: 'Precision Rifle',  price: 780, damage: 98, mag: 6, reserve: 30, rate: 1.0, type: 'sniper' },
+  { name: 'Utility Pistol',   price: 120, damage: 20, mag: 15, reserve: 75, rate: 0.16, type: 'pistol' },
+];
+
+/* 32 animal variants across ~10 species groups */
+const animalSpecies = [
+  { base: 'Whitetail Deer', hp: 95, speed: 1.2, worth: 90, color: 0x8b6a4a, scale: 1.0 },
+  { base: 'Whitetail Buck', hp: 120, speed: 1.15, worth: 130, color: 0x7a5a3e, scale: 1.15 },
+  { base: 'Mule Deer', hp: 110, speed: 1.1, worth: 110, color: 0x9a7a55, scale: 1.05 },
+  { base: 'Elk', hp: 190, speed: 0.85, worth: 200, color: 0x6e5238, scale: 1.45 },
+  { base: 'Bull Elk', hp: 240, speed: 0.8, worth: 280, color: 0x5c4630, scale: 1.6 },
+  { base: 'Red Fox', hp: 55, speed: 1.85, worth: 65, color: 0xc4743a, scale: 0.55 },
+  { base: 'Arctic Fox', hp: 50, speed: 1.7, worth: 80, color: 0xd8d0c4, scale: 0.5 },
+  { base: 'Gray Fox', hp: 58, speed: 1.75, worth: 70, color: 0x8a7a6a, scale: 0.52 },
+  { base: 'Wild Boar', hp: 150, speed: 1.05, worth: 140, color: 0x4a4038, scale: 0.95 },
+  { base: 'Razorback', hp: 175, speed: 1.0, worth: 170, color: 0x3a322c, scale: 1.05 },
+  { base: 'Black Bear', hp: 260, speed: 0.95, worth: 320, color: 0x2a2622, scale: 1.35 },
+  { base: 'Brown Bear', hp: 300, speed: 0.9, worth: 380, color: 0x5a4030, scale: 1.5 },
+  { base: 'Coyote', hp: 70, speed: 1.6, worth: 55, color: 0x9a8060, scale: 0.65 },
+  { base: 'Wolf', hp: 130, speed: 1.4, worth: 160, color: 0x6a6a6e, scale: 0.9 },
+  { base: 'Timber Wolf', hp: 145, speed: 1.35, worth: 190, color: 0x7a7a82, scale: 0.95 },
+  { base: 'Moose', hp: 320, speed: 0.75, worth: 420, color: 0x4a3a2e, scale: 1.8 },
+  { base: 'Pronghorn', hp: 85, speed: 1.5, worth: 95, color: 0xc0a070, scale: 0.85 },
+  { base: 'Bighorn Sheep', hp: 140, speed: 1.0, worth: 150, color: 0xb0a090, scale: 0.9 },
+  { base: 'Mountain Goat', hp: 120, speed: 0.95, worth: 130, color: 0xe8e4dc, scale: 0.85 },
+  { base: 'Raccoon', hp: 40, speed: 1.3, worth: 35, color: 0x6a6058, scale: 0.4 },
+  { base: 'Beaver', hp: 55, speed: 0.7, worth: 50, color: 0x5a4030, scale: 0.45 },
+  { base: 'Turkey', hp: 45, speed: 1.1, worth: 40, color: 0x4a3a28, scale: 0.5 },
+  { base: 'Pheasant', hp: 30, speed: 1.4, worth: 30, color: 0x8a6030, scale: 0.35 },
+  { base: 'Rabbit', hp: 25, speed: 1.9, worth: 20, color: 0xc0b0a0, scale: 0.3 },
+  { base: 'Snowshoe Hare', hp: 28, speed: 1.85, worth: 25, color: 0xf0ece4, scale: 0.32 },
+  { base: 'Bobcat', hp: 90, speed: 1.45, worth: 110, color: 0xb09060, scale: 0.7 },
+  { base: 'Lynx', hp: 100, speed: 1.4, worth: 130, color: 0xc0a880, scale: 0.75 },
+  { base: 'Cougar', hp: 180, speed: 1.3, worth: 250, color: 0xc0a060, scale: 1.1 },
+  { base: 'Otter', hp: 45, speed: 1.2, worth: 45, color: 0x5a4a3a, scale: 0.4 },
+  { base: 'Muskrat', hp: 35, speed: 0.9, worth: 25, color: 0x4a3a2e, scale: 0.35 },
+  { base: 'Grouse', hp: 28, speed: 1.25, worth: 22, color: 0x6a5a40, scale: 0.32 },
+  { base: 'Canada Goose', hp: 50, speed: 1.0, worth: 40, color: 0x3a3a3e, scale: 0.55 },
+];
+
+function currentWeapon() { return weaponDefs[currentWeaponIndex]; }
+
+/* ============================================================
+   UTILS
+   ============================================================ */
+function say(t) {
+  const n = $('notice');
+  n.textContent = t;
+  n.style.opacity = 1;
+  clearTimeout(say._t);
+  say._t = setTimeout(() => (n.style.opacity = 0), 2400);
+}
+
+function updateHUD() {
+  $('money').textContent = '$' + money;
+  $('harvest').textContent = harvest;
+  $('loadout').textContent = currentWeapon().name;
+  $('ammo').textContent = ammoInMag + ' / ' + reserveAmmo;
+  $('locomo').textContent = locomotionMode === 'gorilla' ? 'GORILLA' : 'WALK';
+  $('zone').textContent = selectedBiome;
+  $('modeBtn').textContent = 'MODE: ' + (locomotionMode === 'gorilla' ? 'GORILLA' : 'WALK');
+}
+
+function noise2(x, z) {
+  return Math.sin(x * 0.07) * Math.cos(z * 0.09) * 0.5 + Math.sin(x * 0.19 + z * 0.13) * 0.25;
+}
+
+/* ============================================================
+   TEXTURES & MATERIALS
+   ============================================================ */
+function makeNoiseTex(size, base, variance, lines) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < (lines || 4000); i++) {
+    const a = 40 + Math.random() * variance;
+    ctx.fillStyle = `rgba(${a},${a * 0.85},${a * 0.7},${0.08 + Math.random() * 0.2})`;
+    ctx.fillRect(Math.random() * size, Math.random() * size, 1 + Math.random() * 2, 1 + Math.random() * 2);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+const groundTex = makeNoiseTex(256, '#3d5a3a', 50, 6000);
+groundTex.repeat.set(40, 40);
+const barkTex = makeNoiseTex(128, '#4a3528', 40, 3000);
+barkTex.repeat.set(1, 3);
+const furTex = makeNoiseTex(128, '#6a5040', 55, 5000);
+
+const matGround = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 0.92, metalness: 0 });
+const matBark = new THREE.MeshStandardMaterial({ map: barkTex, roughness: 0.95 });
+const matRock = new THREE.MeshStandardMaterial({ color: 0x7a7870, roughness: 0.88, metalness: 0.05 });
+const matWater = new THREE.MeshStandardMaterial({ color: 0x2a6a7a, roughness: 0.15, metalness: 0.3, transparent: true, opacity: 0.82 });
+const matSnow = new THREE.MeshStandardMaterial({ color: 0xe8eef2, roughness: 0.75 });
+const matFur = new THREE.MeshStandardMaterial({ map: furTex, roughness: 0.95 });
+
+/* ============================================================
+   PROCEDURAL MODELS — GUNS
+   ============================================================ */
+function makeGunMesh(def) {
+  const g = new THREE.Group();
+  const metal = new THREE.MeshStandardMaterial({ color: 0x3a3c40, roughness: 0.35, metalness: 0.7 });
+  const wood = new THREE.MeshStandardMaterial({ color: 0x6a4a30, roughness: 0.75 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x222428, roughness: 0.4, metalness: 0.6 });
+
+  const type = def.type;
+  if (type === 'rifle' || type === 'sniper' || type === 'smg') {
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.015, type === 'sniper' ? 0.55 : 0.42, 10), metal);
+    barrel.rotation.z = Math.PI / 2;
+    barrel.position.set(0.22, 0.02, 0);
+    g.add(barrel);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.045), type === 'smg' ? dark : wood);
+    body.position.set(0.02, 0, 0);
+    g.add(body);
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.04), wood);
+    stock.position.set(-0.16, -0.01, 0);
+    g.add(stock);
+    if (type === 'sniper') {
+      const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.1, 10), dark);
+      scope.rotation.z = Math.PI / 2;
+      scope.position.set(0.08, 0.05, 0);
+      g.add(scope);
+    }
+    if (type === 'smg') {
+      const mag = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.1, 0.025), dark);
+      mag.position.set(0.02, -0.07, 0);
+      g.add(mag);
+    }
+  } else if (type === 'pistol') {
+    const slide = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.04, 0.03), metal);
+    slide.position.set(0.04, 0.02, 0);
+    g.add(slide);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.09, 0.028), wood);
+    grip.position.set(-0.02, -0.04, 0);
+    g.add(grip);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.01, 0.08, 8), metal);
+    barrel.rotation.z = Math.PI / 2;
+    barrel.position.set(0.12, 0.02, 0);
+    g.add(barrel);
+  } else if (type === 'shotgun') {
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.4, 10), metal);
+    barrel.rotation.z = Math.PI / 2;
+    barrel.position.set(0.2, 0.02, 0);
+    g.add(barrel);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.07, 0.05), wood);
+    body.position.set(0, 0, 0);
+    g.add(body);
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 0.04), wood);
+    stock.position.set(-0.15, -0.01, 0);
+    g.add(stock);
+  } else if (type === 'bow' || type === 'crossbow') {
+    const riser = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.14, 0.03), wood);
+    g.add(riser);
+    const limb1 = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.22, 0.015), wood);
+    limb1.position.set(0, 0.14, 0);
+    limb1.rotation.z = 0.25;
+    g.add(limb1);
+    const limb2 = limb1.clone();
+    limb2.position.y = -0.14;
+    limb2.rotation.z = -0.25;
+    g.add(limb2);
+    if (type === 'crossbow') {
+      const stock = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.04, 0.035), wood);
+      stock.position.set(0.1, -0.02, 0);
+      g.add(stock);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.02, 0.02), metal);
+      rail.position.set(0.12, 0.03, 0);
+      g.add(rail);
+    }
+  }
+  g.scale.setScalar(1.15);
+  return g;
+}
+
+/* ============================================================
+   PROCEDURAL ANIMALS
+   ============================================================ */
+function makeAnimalMesh(def) {
+  const g = new THREE.Group();
+  const col = new THREE.Color(def.color);
+  const fur = matFur.clone();
+  fur.color = col;
+  const s = def.scale;
+
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.35 * s, 18, 14), fur);
+  body.scale.set(1.1, 0.85, 1.4);
+  body.position.y = 0.55 * s;
+  g.add(body);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.22 * s, 16, 12), fur);
+  head.position.set(0, 0.7 * s, 0.42 * s);
+  g.add(head);
+
+  const snout = new THREE.Mesh(
+    new THREE.SphereGeometry(0.1 * s, 12, 10),
+    new THREE.MeshStandardMaterial({ color: col.clone().multiplyScalar(0.85), roughness: 0.7 })
+  );
+  snout.scale.set(0.9, 0.7, 1.2);
+  snout.position.set(0, 0.62 * s, 0.58 * s);
+  g.add(snout);
+
+  for (const side of [-1, 1]) {
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.06 * s, 0.28 * s, 4, 8), fur);
+    leg.position.set(side * 0.18 * s, 0.22 * s, 0.15 * s);
+    g.add(leg);
+    const legB = leg.clone();
+    legB.position.z = -0.22 * s;
+    g.add(legB);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.06 * s, 10, 8), fur);
+    ear.scale.set(0.7, 1.1, 0.4);
+    ear.position.set(side * 0.14 * s, 0.88 * s, 0.35 * s);
+    g.add(ear);
+  }
+
+  // simple tail
+  const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.04 * s, 0.25 * s, 4, 6), fur);
+  tail.position.set(0, 0.5 * s, -0.45 * s);
+  tail.rotation.x = 0.4;
+  g.add(tail);
+
+  g.userData.hp = def.hp;
+  g.userData.maxHp = def.hp;
+  g.userData.worth = def.worth;
+  g.userData.speed = def.speed;
+  g.userData.name = def.base;
+  g.userData.alive = true;
+  g.userData.phase = Math.random() * Math.PI * 2;
+  return g;
+}
+
+/* ============================================================
+   PLAYER BODY + HANDS (with finger curl)
+   ============================================================ */
+function makePlayerBody() {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3a4a40, roughness: 0.8 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xc4a080, roughness: 0.7 });
+
+  // torso
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 0.35, 6, 12), bodyMat);
+  torso.position.y = 1.15;
+  g.add(torso);
+
+  // head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), skinMat);
+  head.position.y = 1.55;
+  g.add(head);
+
+  // legs (for walk mode)
+  legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.35, 4, 8), bodyMat);
+  legL.position.set(-0.09, 0.45, 0);
+  g.add(legL);
+  legR = legL.clone();
+  legR.position.x = 0.09;
+  g.add(legR);
+
+  // simple boots
+  const bootL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.16), new THREE.MeshStandardMaterial({ color: 0x2a2520 }));
+  bootL.position.set(-0.09, 0.05, 0.02);
+  g.add(bootL);
+  const bootR = bootL.clone();
+  bootR.position.x = 0.09;
+  g.add(bootR);
+
+  g.visible = true;
+  return g;
+}
+
+function makeHand(isRight) {
+  const g = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color: 0xc4a080, roughness: 0.65 });
+  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.1), skin);
+  palm.position.z = -0.02;
+  g.add(palm);
+
+  // 4 fingers + thumb — curl driven later
+  const fingers = [];
+  for (let i = 0; i < 4; i++) {
+    const f = new THREE.Group();
+    const bone1 = new THREE.Mesh(new THREE.CapsuleGeometry(0.008, 0.028, 3, 6), skin);
+    bone1.position.y = 0.02;
+    f.add(bone1);
+    const bone2 = new THREE.Mesh(new THREE.CapsuleGeometry(0.007, 0.022, 3, 6), skin);
+    bone2.position.y = 0.05;
+    f.add(bone2);
+    f.position.set((i - 1.5) * 0.02, 0.01, -0.07);
+    g.add(f);
+    fingers.push(f);
+  }
+  const thumb = new THREE.Group();
+  const t1 = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.025, 3, 6), skin);
+  t1.position.set(0, 0.015, 0);
+  thumb.add(t1);
+  thumb.position.set(isRight ? -0.04 : 0.04, 0, -0.02);
+  thumb.rotation.z = isRight ? 0.6 : -0.6;
+  g.add(thumb);
+
+  g.userData.fingers = fingers;
+  g.userData.thumb = thumb;
+  g.userData.curl = 0;
+  return g;
+}
+
+function setHandCurl(hand, amount) {
+  // amount 0 open → 1 fist
+  const a = THREE.MathUtils.clamp(amount, 0, 1);
+  hand.userData.curl = a;
+  hand.userData.fingers.forEach((f, i) => {
+    const bend = a * (0.9 + i * 0.05);
+    f.rotation.x = bend * 1.1;
+    if (f.children[1]) f.children[1].rotation.x = bend * 0.9;
+  });
+  hand.userData.thumb.rotation.x = a * 0.5;
+}
+
+/* ============================================================
+   FIELD PAD (grabable in-VR menu)
+   ============================================================ */
+function makeFieldPad() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(0.18, 0.28, 0.02),
+    new THREE.MeshStandardMaterial({ color: 0x1a2420, roughness: 0.5, metalness: 0.2 })
+  );
+  g.add(body);
+  const screen = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.15, 0.22),
+    new THREE.MeshBasicMaterial({ color: 0x0e1a14 })
+  );
+  screen.position.z = 0.011;
+  g.add(screen);
+
+  // simple canvas texture for pad UI
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 384;
+  const ctx = c.getContext('2d');
+  function drawPad(page) {
+    ctx.fillStyle = '#0c1612';
+    ctx.fillRect(0, 0, 256, 384);
+    ctx.fillStyle = '#e0c07a';
+    ctx.font = 'bold 22px system-ui';
+    ctx.fillText('FIELD PAD', 20, 36);
+    ctx.strokeStyle = '#e0c07a55';
+    ctx.beginPath();
+    ctx.moveTo(16, 48);
+    ctx.lineTo(240, 48);
+    ctx.stroke();
+    ctx.fillStyle = '#c8d4c4';
+    ctx.font = '16px system-ui';
+    const lines = [
+      'Y / Menu  → toggle pad',
+      'Grip near pad → grab',
+      '',
+      '• Shop & Loadout',
+      '• Biome select',
+      '• Locomotion mode',
+      '• Credits & harvest',
+      '',
+      'Current: ' + currentWeapon().name,
+      'Ammo: ' + ammoInMag + '/' + reserveAmmo,
+      'Mode: ' + (locomotionMode === 'gorilla' ? 'GORILLA TAG' : 'WALK'),
+      'Biome: ' + selectedBiome,
+      '',
+      'R / secondary → reload',
+      'Trigger → fire',
+    ];
+    lines.forEach((t, i) => ctx.fillText(t, 18, 78 + i * 20));
+  }
+  drawPad();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  screen.material.map = tex;
+  screen.material.needsUpdate = true;
+  g.userData.draw = drawPad;
+  g.userData.tex = tex;
+  g.userData.screen = screen;
+  g.visible = false;
+  return g;
+}
+
+/* ============================================================
+   WORLD BUILD
+   ============================================================ */
+function clearWorld() {
+  if (worldGroup) {
+    scene.remove(worldGroup);
+    worldGroup.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        if (Array.isArray(o.material)) o.material.forEach(m => m.dispose());
+        else o.material.dispose();
+      }
+    });
+  }
+  worldGroup = new THREE.Group();
+  scene.add(worldGroup);
+  animals.length = 0;
+  bait.length = 0;
+  fish.length = 0;
+}
+
+function buildBiome(name) {
+  clearWorld();
+  selectedBiome = name;
+  updateHUD();
+
+  // ground
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(260, 260, 48, 48), name === 'SNOW' ? matSnow : matGround);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  const pos = ground.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getY(i);
+    pos.setZ(i, noise2(x, z) * (name === 'HIGHLANDS' ? 4.5 : 1.8));
+  }
+  ground.geometry.computeVertexNormals();
+  worldGroup.add(ground);
+
+  // water for lakeshore
+  if (name === 'LAKESHORE') {
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(80, 50), matWater);
+    water.rotation.x = -Math.PI / 2;
+    water.position.set(0, 0.05, -40);
+    worldGroup.add(water);
+  }
+
+  // trees / rocks
+  const treeCount = name === 'SNOW' ? 35 : 55;
+  for (let i = 0; i < treeCount; i++) {
+    const x = (Math.random() - 0.5) * 200;
+    const z = (Math.random() - 0.5) * 200;
+    if (Math.hypot(x, z) < 8) continue;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.28, 4 + Math.random() * 3, 8), matBark);
+    trunk.position.set(x, 2.2, z);
+    trunk.castShadow = true;
+    worldGroup.add(trunk);
+    const canopy = new THREE.Mesh(
+      new THREE.SphereGeometry(1.6 + Math.random(), 10, 8),
+      new THREE.MeshStandardMaterial({
+        color: name === 'SNOW' ? 0xdde6ea : name === 'HIGHLANDS' ? 0x5a7040 : 0x3a6a38,
+        roughness: 0.9
+      })
+    );
+    canopy.position.set(x, 5 + Math.random(), z);
+    canopy.castShadow = true;
+    worldGroup.add(canopy);
+  }
+
+  for (let i = 0; i < 40; i++) {
+    const rock = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(0.4 + Math.random() * 1.2, 0),
+      matRock
+    );
+    rock.position.set((Math.random() - 0.5) * 180, 0.3, (Math.random() - 0.5) * 180);
+    rock.rotation.set(Math.random(), Math.random(), Math.random());
+    rock.castShadow = true;
+    worldGroup.add(rock);
+  }
+
+  // wildlife
+  const count = 28;
+  for (let i = 0; i < count; i++) {
+    const def = animalSpecies[Math.floor(Math.random() * animalSpecies.length)];
+    const mesh = makeAnimalMesh(def);
+    mesh.position.set((Math.random() - 0.5) * 160, 0, (Math.random() - 0.5) * 160);
+    if (mesh.position.length() < 12) mesh.position.setLength(14);
+    mesh.rotation.y = Math.random() * Math.PI * 2;
+    worldGroup.add(mesh);
+    animals.push({
+      mesh,
+      def,
+      vx: 0,
+      vz: 0,
+      state: 'wander',
+      timer: Math.random() * 4,
+      dead: false
+    });
+  }
+}
+
+/* ============================================================
+   COMBAT / FISHING / BAIT
+   ============================================================ */
+function fireWeapon() {
+  const w = currentWeapon();
+  const now = performance.now() / 1000;
+  if (now - lastShot < w.rate) return;
+  if (ammoInMag <= 0) {
+    say('Empty — press R / secondary to reload');
+    return;
+  }
+  lastShot = now;
+  ammoInMag--;
+  updateHUD();
+  if (fieldPad) fieldPad.userData.draw();
+
+  // muzzle flash
+  const flash = new THREE.PointLight(0xffcc66, 2.5, 6);
+  flash.position.copy(camera.position);
+  flash.position.add(new THREE.Vector3(0, -0.1, -0.6).applyQuaternion(camera.quaternion));
+  scene.add(flash);
+  setTimeout(() => scene.remove(flash), 50);
+
+  // ray
+  const origin = camera.position.clone();
+  const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+  const ray = new THREE.Raycaster(origin, dir, 0.3, 120);
+  const hits = ray.intersectObjects(animals.map(a => a.mesh), true);
+  if (hits.length) {
+    let obj = hits[0].object;
+    while (obj && !obj.userData.hp) obj = obj.parent;
+    if (obj && obj.userData.alive) {
+      const dmg = w.damage * (w.pellets ? 0.6 : 1);
+      obj.userData.hp -= dmg;
+      // blood
+      for (let i = 0; i < 6; i++) {
+        const p = new THREE.Mesh(
+          new THREE.SphereGeometry(0.03, 6, 4),
+          new THREE.MeshBasicMaterial({ color: 0x8a2020 })
+        );
+        p.position.copy(hits[0].point);
+        scene.add(p);
+        blood.push({ mesh: p, life: 0.6 + Math.random() * 0.4, v: new THREE.Vector3((Math.random() - 0.5) * 2, Math.random() * 2, (Math.random() - 0.5) * 2) });
+      }
+      if (obj.userData.hp <= 0) {
+        obj.userData.alive = false;
+        const a = animals.find(x => x.mesh === obj);
+        if (a) {
+          a.dead = true;
+          a.timer = 2.5;
+          // death fall
+          obj.rotation.z = Math.PI / 2 * (Math.random() > 0.5 ? 1 : -1);
+          obj.position.y = 0.15;
+        }
+        money += obj.userData.worth;
+        harvest++;
+        say('Harvested ' + obj.userData.name + ' · +$' + obj.userData.worth);
+        updateHUD();
+      } else {
+        say(obj.userData.name + ' hit · ' + Math.ceil(obj.userData.hp) + ' HP');
+      }
+    }
+  }
+}
+
+function reloadWeapon() {
+  const now = performance.now() / 1000;
+  if (now - lastReload < 0.4) return;
+  const w = currentWeapon();
+  if (ammoInMag >= w.mag) return;
+  if (reserveAmmo <= 0) {
+    say('No reserve ammo');
+    return;
+  }
+  lastReload = now;
+  const need = w.mag - ammoInMag;
+  const take = Math.min(need, reserveAmmo);
+  ammoInMag += take;
+  reserveAmmo -= take;
+  say('Reloaded ' + w.name);
+  updateHUD();
+  if (fieldPad) fieldPad.userData.draw();
+}
+
+function dropBait() {
+  if (money < 12) {
+    say('Need $12 for bait');
+    return;
+  }
+  money -= 12;
+  updateHUD();
+  const b = new THREE.Mesh(
+    new THREE.SphereGeometry(0.08, 10, 8),
+    new THREE.MeshStandardMaterial({ color: 0xc45a3a, roughness: 0.6 })
+  );
+  // better looking bait — small fish-like
+  const tail = new THREE.Mesh(
+    new THREE.ConeGeometry(0.05, 0.1, 6),
+    new THREE.MeshStandardMaterial({ color: 0xa04028 })
+  );
+  tail.rotation.x = Math.PI / 2;
+  tail.position.z = -0.1;
+  b.add(tail);
+  b.position.copy(camera.position);
+  b.position.y = 0.15;
+  b.position.add(new THREE.Vector3(0, 0, -1.2).applyQuaternion(camera.quaternion));
+  worldGroup.add(b);
+  bait.push({ mesh: b, life: 45 });
+  say('Bait dropped');
+}
+
+function tryFish() {
+  // must be near water in lakeshore
+  if (selectedBiome !== 'LAKESHORE') {
+    say('Fish only at Lakeshore');
+    return;
+  }
+  const nearWater = camera.position.z < -18;
+  if (!nearWater) {
+    say('Move closer to the water');
+    return;
+  }
+  // chance improved by nearby bait
+  let chance = 0.35;
+  bait.forEach(b => {
+    if (b.mesh.position.distanceTo(camera.position) < 8) chance += 0.2;
+  });
+  if (Math.random() < chance) {
+    const worth = 25 + Math.floor(Math.random() * 55);
+    money += worth;
+    harvest++;
+    say('Caught a fish! +$' + worth);
+    // visual fish
+    const f = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.06, 0.22, 4, 8),
+      new THREE.MeshStandardMaterial({ color: 0x5a8a9a, roughness: 0.35, metalness: 0.3 })
+    );
+    f.position.copy(camera.position);
+    f.position.y -= 0.3;
+    f.position.add(new THREE.Vector3(0, 0, -0.8).applyQuaternion(camera.quaternion));
+    scene.add(f);
+    fish.push({ mesh: f, life: 2.5 });
+    updateHUD();
+  } else {
+    say('Nothing biting… try bait');
+  }
+}
+
+/* ============================================================
+   MULTIPLAYER (kept compatible with server)
+   ============================================================ */
+function connectSocket() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const url = proto + '://' + location.host;
+  socket = new WebSocket(url);
+  socket.onopen = () => {
+    socket.send(JSON.stringify({ type: 'join', id: localId, name: nick, room: roomCode }));
+  };
+  socket.onmessage = (ev) => {
+    let m;
+    try { m = JSON.parse(ev.data); } catch { return; }
+    if (m.type === 'snapshot') {
+      m.players.forEach(p => upsertRemote(p));
+      $('players').textContent = (m.players.length + 1) + ' HUNTERS';
+    }
+    if (m.type === 'player') upsertRemote(m);
+    if (m.type === 'leave') {
+      const a = remoteAvatars.get(m.id);
+      if (a) {
+        scene.remove(a.mesh);
+        remoteAvatars.delete(m.id);
+      }
+    }
+    if (m.type === 'signal') handleSignal(m);
+  };
+  socket.onclose = () => {
+    if (joined) setTimeout(connectSocket, 2000);
+  };
+}
+
+function upsertRemote(p) {
+  if (p.id === localId) return;
+  let a = remoteAvatars.get(p.id);
+  if (!a) {
+    const mesh = makePlayerBody();
+    mesh.scale.setScalar(0.95);
+    scene.add(mesh);
+    a = { mesh, name: p.name || 'Hunter' };
+    remoteAvatars.set(p.id, a);
+  }
+  if (p.x !== undefined) {
+    a.mesh.position.set(p.x, p.y - 1.55, p.z);
+    a.mesh.rotation.y = p.yaw || 0;
+  }
+}
+
+function sendState() {
+  if (!socket || socket.readyState !== 1) return;
+  socket.send(JSON.stringify({
+    type: 'state',
+    x: camera.position.x,
+    y: camera.position.y,
+    z: camera.position.z,
+    yaw
+  }));
+}
+
+function handleSignal() { /* WebRTC voice stub kept lightweight */ }
+
+/* ============================================================
+   INPUT
+   ============================================================ */
+function setupInput() {
+  addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'KeyR') reloadWeapon();
+    if (e.code === 'KeyG') dropBait();
+    if (e.code === 'KeyF') tryFish();
+    if (e.code === 'Tab') {
+      e.preventDefault();
+      toggleFieldPad();
+    }
+    if (e.code === 'KeyM') toggleLocomotion();
+  });
+  addEventListener('keyup', e => { keys[e.code] = false; });
+  addEventListener('mousedown', e => {
+    if (!joined || vrMode) return;
+    if (e.button === 0) fireWeapon();
+  });
+  addEventListener('mousemove', e => {
+    if (!joined || vrMode || document.pointerLockElement !== renderer.domElement) return;
+    yaw -= e.movementX * 0.0022;
+    pitch -= e.movementY * 0.0022;
+    pitch = Math.max(-1.4, Math.min(1.4, pitch));
+  });
+  renderer.domElement.addEventListener('click', () => {
+    if (joined && !vrMode) renderer.domElement.requestPointerLock();
+  });
+
+  $('mapBtn').onclick = () => {
+    const order = ['PINEWOOD', 'SNOW', 'LAKESHORE', 'HIGHLANDS'];
+    const i = (order.indexOf(selectedBiome) + 1) % order.length;
+    buildBiome(order[i]);
+    say('Biome: ' + order[i]);
+  };
+  $('shopBtn').onclick = () => {
+    $('shop').style.display = $('shop').style.display === 'block' ? 'none' : 'block';
+    buildShop();
+  };
+  $('closeShop').onclick = () => ($('shop').style.display = 'none');
+  $('baitBtn').onclick = dropBait;
+  $('fishBtn').onclick = tryFish;
+  $('modeBtn').onclick = toggleLocomotion;
+}
+
+function buildShop() {
+  const box = $('shopItems');
+  box.innerHTML = '';
+  weaponDefs.forEach((w, i) => {
+    const row = document.createElement('div');
+    row.className = 'shopitem';
+    row.innerHTML = `<span>${w.name}<br><small>$${w.price} · DMG ${w.damage}</small></span>`;
+    const btn = document.createElement('button');
+    btn.textContent = i === currentWeaponIndex ? 'EQUIPPED' : (money >= w.price || w.price === 0 ? 'BUY' : '—');
+    btn.disabled = i === currentWeaponIndex || (w.price > 0 && money < w.price);
+    btn.onclick = () => {
+      if (i === currentWeaponIndex) return;
+      if (w.price > 0) {
+        if (money < w.price) return;
+        money -= w.price;
+      }
+      currentWeaponIndex = i;
+      ammoInMag = w.mag;
+      reserveAmmo = w.reserve;
+      updateHUD();
+      buildShop();
+      say('Equipped ' + w.name);
+      if (fieldPad) fieldPad.userData.draw();
+    };
+    row.appendChild(btn);
+    box.appendChild(row);
+  });
+}
+
+function toggleLocomotion() {
+  locomotionMode = locomotionMode === 'walk' ? 'gorilla' : 'walk';
+  updateHUD();
+  say(locomotionMode === 'gorilla' ? 'Gorilla Tag mode — arm swing only' : 'Walk mode — legs enabled');
+  if (localBody) {
+    legL.visible = legR.visible = locomotionMode === 'walk';
+  }
+  if (fieldPad) fieldPad.userData.draw();
+}
+
+function toggleFieldPad() {
+  fieldPadOpen = !fieldPadOpen;
+  if (fieldPad) {
+    fieldPad.visible = fieldPadOpen;
+    fieldPad.userData.draw();
+    fieldPad.userData.tex.needsUpdate = true;
+  }
+  say(fieldPadOpen ? 'Field Pad open' : 'Field Pad closed');
+}
+
+/* ============================================================
+   MOVEMENT
+   ============================================================ */
+function movePlayer(dt) {
+  const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+
+  if (!vrMode) {
+    let move = new THREE.Vector3();
+    if (keys.KeyW || keys.ArrowUp) move.add(forward);
+    if (keys.KeyS || keys.ArrowDown) move.sub(forward);
+    if (keys.KeyD || keys.ArrowRight) move.add(right);
+    if (keys.KeyA || keys.ArrowLeft) move.sub(right);
+    if (move.lengthSq()) move.normalize();
+    velocity.x += (move.x * 5.2 - velocity.x) * Math.min(1, dt * 9);
+    velocity.z += (move.z * 5.2 - velocity.z) * Math.min(1, dt * 9);
+    camera.position.addScaledVector(velocity, dt);
+    camera.position.y = 1.65;
+    camera.rotation.order = 'YXZ';
+    camera.rotation.set(pitch, yaw, 0);
+
+    // walk cycle
+    const spd = Math.hypot(velocity.x, velocity.z);
+    if (spd > 0.4 && locomotionMode === 'walk') {
+      walkPhase += dt * spd * 3.2;
+      if (legL) {
+        legL.rotation.x = Math.sin(walkPhase) * 0.55;
+        legR.rotation.x = Math.sin(walkPhase + Math.PI) * 0.55;
+      }
+    } else if (legL) {
+      legL.rotation.x *= 0.85;
+      legR.rotation.x *= 0.85;
+    }
+  } else {
+    // VR
+    if (locomotionMode === 'gorilla') {
+      // pure arm-swing
+      let push = new THREE.Vector3();
+      controllers.forEach(c => {
+        const p = new THREE.Vector3().setFromMatrixPosition(c.matrixWorld);
+        if (c.userData.prev && c.userData.prev.lengthSq() > 0) {
+          const delta = p.clone().sub(c.userData.prev);
+          if (delta.length() < 0.28) push.add(delta);
+        }
+        c.userData.prev = p;
+      });
+      if (push.lengthSq()) {
+        camera.position.addScaledVector(push, -2.8);
+        velocity.addScaledVector(push, -2.0);
+      }
+      velocity.y -= 9.8 * dt;
+      camera.position.addScaledVector(velocity, dt);
+      if (camera.position.y < 1.55) {
+        camera.position.y = 1.55;
+        velocity.y = 0;
+      }
+      velocity.x *= 0.97;
+      velocity.z *= 0.97;
+    } else {
+      // hybrid: still allow arm boost + gentle stick if present
+      let push = new THREE.Vector3();
+      controllers.forEach(c => {
+        const p = new THREE.Vector3().setFromMatrixPosition(c.matrixWorld);
+        if (c.userData.prev && c.userData.prev.lengthSq() > 0) {
+          const delta = p.clone().sub(c.userData.prev);
+          if (delta.length() < 0.2) push.add(delta);
+        }
+        c.userData.prev = p;
+        // thumbstick if available
+        const gp = c.userData.gamepad;
+        if (gp && gp.axes && gp.axes.length >= 2) {
+          const ax = gp.axes[2] || gp.axes[0] || 0;
+          const ay = gp.axes[3] || gp.axes[1] || 0;
+          if (Math.abs(ax) > 0.15 || Math.abs(ay) > 0.15) {
+            const f = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+            const r = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+            camera.position.addScaledVector(f, -ay * 3.5 * dt);
+            camera.position.addScaledVector(r, ax * 3.5 * dt);
+          }
+        }
+      });
+      if (push.lengthSq()) camera.position.addScaledVector(push, -1.6);
+      camera.position.y = 1.6;
+    }
+  }
+
+  camera.position.x = THREE.MathUtils.clamp(camera.position.x, -120, 120);
+  camera.position.z = THREE.MathUtils.clamp(camera.position.z, -120, 120);
+
+  if (localBody) {
+    localBody.position.set(camera.position.x, camera.position.y - 1.55, camera.position.z);
+    localBody.rotation.y = yaw;
+    // hide local body head in first person
+    localBody.children.forEach((ch, i) => {
+      if (i === 1) ch.visible = false; // head
+    });
+  }
+
+  // field pad follows behind hip when not grabbed
+  if (fieldPad && fieldPadOpen && !fieldPadGrabbed) {
+    const behind = new THREE.Vector3(0.25, -0.35, 0.2).applyQuaternion(camera.quaternion);
+    fieldPad.position.copy(camera.position).add(behind);
+    fieldPad.quaternion.copy(camera.quaternion);
+  }
+}
+
+/* ============================================================
+   WILDLIFE AI
+   ============================================================ */
+function updateWildlife(dt) {
+  animals.forEach(a => {
+    if (a.dead) {
+      a.timer -= dt;
+      if (a.timer <= 0) {
+        worldGroup.remove(a.mesh);
+        animals.splice(animals.indexOf(a), 1);
+      }
+      return;
+    }
+    a.timer -= dt;
+    if (a.timer <= 0) {
+      a.timer = 2 + Math.random() * 4;
+      a.vx = (Math.random() - 0.5) * a.def.speed * 1.8;
+      a.vz = (Math.random() - 0.5) * a.def.speed * 1.8;
+      a.mesh.rotation.y = Math.atan2(a.vx, a.vz);
+    }
+    a.mesh.position.x += a.vx * dt;
+    a.mesh.position.z += a.vz * dt;
+    a.mesh.position.y = 0;
+    // simple walk bob
+    a.userData = a.userData || {};
+    a.mesh.position.y = Math.abs(Math.sin(performance.now() * 0.008 + a.mesh.id)) * 0.04;
+
+    // flee if player close
+    const d = a.mesh.position.distanceTo(camera.position);
+    if (d < 11) {
+      const away = a.mesh.position.clone().sub(camera.position).normalize();
+      a.vx = away.x * a.def.speed * 2.4;
+      a.vz = away.z * a.def.speed * 2.4;
+      a.mesh.rotation.y = Math.atan2(a.vx, a.vz);
+    }
+  });
+
+  // blood
+  for (let i = blood.length - 1; i >= 0; i--) {
+    const b = blood[i];
+    b.life -= dt;
+    b.mesh.position.addScaledVector(b.v, dt);
+    b.v.y -= 6 * dt;
+    if (b.life <= 0) {
+      scene.remove(b.mesh);
+      blood.splice(i, 1);
+    }
+  }
+  // fish popups
+  for (let i = fish.length - 1; i >= 0; i--) {
+    fish[i].life -= dt;
+    fish[i].mesh.position.y += dt * 0.4;
+    if (fish[i].life <= 0) {
+      scene.remove(fish[i].mesh);
+      fish.splice(i, 1);
+    }
+  }
+  // bait life
+  for (let i = bait.length - 1; i >= 0; i--) {
+    bait[i].life -= dt;
+    if (bait[i].life <= 0) {
+      worldGroup.remove(bait[i].mesh);
+      bait.splice(i, 1);
+    }
+  }
+}
+
+/* ============================================================
+   VR SESSION
+   ============================================================ */
+async function enterVR() {
+  if (!navigator.xr) {
+    $('status').textContent = 'WebXR not available in this browser.';
+    return;
+  }
+  try {
+    const ok = await navigator.xr.isSessionSupported('immersive-vr');
+    if (!ok) {
+      $('status').textContent = 'Immersive VR not supported on this device.';
+      return;
+    }
+    const session = await navigator.xr.requestSession('immersive-vr', {
+      optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+    });
+    await renderer.xr.setSession(session);
+    vrMode = true;
+    $('menu').style.display = 'none';
+    $('crosshair').style.display = 'none';
+    $('hint').textContent = 'Trigger fire · Grip interact · Y/Menu pad · Secondary reload · Arm-swing move';
+    say('VR session started');
+
+    // controllers
+    for (let i = 0; i < 2; i++) {
+      const c = renderer.xr.getController(i);
+      c.userData.prev = new THREE.Vector3();
+      scene.add(c);
+      controllers[i] = c;
+      const hand = makeHand(i === 1);
+      c.add(hand);
+      hands[i] = hand;
+
+      c.addEventListener('selectstart', () => fireWeapon());
+      c.addEventListener('squeezestart', () => {
+        // grip — try grab pad or interact
+        if (fieldPad && fieldPad.visible) {
+          const hp = new THREE.Vector3().setFromMatrixPosition(c.matrixWorld);
+          if (hp.distanceTo(fieldPad.position) < 0.35) {
+            fieldPadGrabbed = true;
+            c.attach(fieldPad);
+          }
+        }
+      });
+      c.addEventListener('squeezeend', () => {
+        if (fieldPadGrabbed) {
+          scene.attach(fieldPad);
+          fieldPadGrabbed = false;
+        }
+      });
+    }
+
+    // controller connected → gamepad reference
+    renderer.xr.getController(0).addEventListener('connected', e => {
+      if (e.data.gamepad) controllers[0].userData.gamepad = e.data.gamepad;
+    });
+    renderer.xr.getController(1).addEventListener('connected', e => {
+      if (e.data.gamepad) controllers[1].userData.gamepad = e.data.gamepad;
+    });
+
+    session.addEventListener('end', () => {
+      vrMode = false;
+      $('menu').style.display = 'grid';
+      $('crosshair').style.display = 'block';
+    });
+
+    // poll menu button (Y / B / menu) each frame later
+  } catch (err) {
+    $('status').textContent = 'VR start failed: ' + (err.message || err);
+  }
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87a8c0);
+  scene.fog = new THREE.Fog(0x87a8c0, 40, 140);
+
+  camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 250);
+  camera.position.set(0, 1.65, 6);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.xr.enabled = true;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  $('game').appendChild(renderer.domElement);
+
+  // lights
+  scene.add(new THREE.HemisphereLight(0xc8e0ff, 0x3a5030, 0.75));
+  const sun = new THREE.DirectionalLight(0xfff0d8, 1.35);
+  sun.position.set(30, 50, 20);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 1;
+  sun.shadow.camera.far = 140;
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -40;
+  sun.shadow.camera.right = sun.shadow.camera.top = 40;
+  scene.add(sun);
+
+  clock = new THREE.Clock();
+  localBody = makePlayerBody();
+  scene.add(localBody);
+
+  fieldPad = makeFieldPad();
+  scene.add(fieldPad);
+
+  buildBiome('PINEWOOD');
+  setupInput();
+  buildShop();
+  updateHUD();
+
+  // equip first weapon
+  const w = currentWeapon();
+  ammoInMag = w.mag;
+  reserveAmmo = w.reserve;
+  updateHUD();
+
+  $('join').onclick = () => {
+    nick = $('nickname').value.trim() || 'Hunter';
+    roomCode = ($('room').value.trim() || 'PINE7').toUpperCase();
+    joined = true;
+    $('menu').style.display = 'none';
+    connectSocket();
+    say('Entered wilderness · room ' + roomCode);
+  };
+  $('vr').onclick = async () => {
+    nick = $('nickname').value.trim() || 'Hunter';
+    roomCode = ($('room').value.trim() || 'PINE7').toUpperCase();
+    if (!joined) {
+      joined = true;
+      connectSocket();
+    }
+    await enterVR();
+  };
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+
+  renderer.setAnimationLoop(() => {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    if (joined) {
+      movePlayer(dt);
+      updateWildlife(dt);
+      sendState();
+
+      // VR controller extras
+      if (vrMode) {
+        controllers.forEach((c, i) => {
+          const gp = c.userData.gamepad;
+          if (!gp) return;
+          // finger curl from grip + trigger
+          const trigger = gp.buttons[0] ? gp.buttons[0].value : 0;
+          const grip = gp.buttons[1] ? gp.buttons[1].value : 0;
+          if (hands[i]) setHandCurl(hands[i], Math.max(trigger, grip * 0.85));
+
+          // menu button (common indices: 4 or 5, or axes)
+          if (gp.buttons[4] && gp.buttons[4].pressed && !c.userData.menuLatch) {
+            c.userData.menuLatch = true;
+            toggleFieldPad();
+          }
+          if (gp.buttons[4] && !gp.buttons[4].pressed) c.userData.menuLatch = false;
+
+          // secondary / B for reload
+          if (gp.buttons[5] && gp.buttons[5].pressed && !c.userData.reloadLatch) {
+            c.userData.reloadLatch = true;
+            reloadWeapon();
+          }
+          if (gp.buttons[5] && !gp.buttons[5].pressed) c.userData.reloadLatch = false;
+        });
+      }
+    }
+    renderer.render(scene, camera);
+  });
+}
+
+try {
+  init();
+} catch (e) {
+  console.error(e);
+  $('status').textContent = 'Init failed: ' + (e.message || e);
+}
+</script>
+</body>
+</html>
